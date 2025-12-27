@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <mutex>
 
 class DB
 {
@@ -18,6 +19,7 @@ public:
 
 private:
     std::unique_ptr<pqxx::connection> conn_;
+    mutable std::mutex conn_mutex_; // Thread-safe access to connection
 };
 
 #endif // DB_H

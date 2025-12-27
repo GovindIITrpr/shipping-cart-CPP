@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include "db/db_pool.h"
 
 using json = nlohmann::json;
 
@@ -15,7 +16,7 @@ App::App()
 
     try
     {
-        db = std::make_shared<DB>(connStr);
+        db = std::make_shared<DBPool>(connStr,5);
         cartController = std::make_unique<CartController>(*cart, db);
         std::cout << "Database initialized successfully" << std::endl;
     }

@@ -3,7 +3,7 @@
 #include "../models/item.h"
 #include <sstream>
 
-CartController::CartController(Cart &cart, std::shared_ptr<DB> db)
+CartController::CartController(Cart &cart, std::shared_ptr<DBPool> db)
     : cart(cart), db_(db) {}
 
 bool CartController::addItem(const Item &item)

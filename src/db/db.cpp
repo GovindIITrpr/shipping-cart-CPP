@@ -26,6 +26,7 @@ DB::~DB()
 
 pqxx::result DB::exec(const std::string &sql)
 {
+    std::lock_guard<std::mutex> lock(conn_mutex_); // Thread-safe lock
     if (!conn_ || !conn_->is_open())
     {
         throw std::runtime_error("Database connection is not open");
@@ -46,6 +47,7 @@ pqxx::result DB::exec(const std::string &sql)
 
 void DB::exec_no_result(const std::string &sql)
 {
+    std::lock_guard<std::mutex> lock(conn_mutex_); // Thread-safe lock
     if (!conn_ || !conn_->is_open())
     {
         throw std::runtime_error("Database connection is not open");
