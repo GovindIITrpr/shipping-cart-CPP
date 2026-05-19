@@ -5,7 +5,7 @@
 #include <memory>
 #include "controllers/cart_controller.h"
 #include "models/cart.h"
-#include "db/db.h"
+#include "db/db_pool.h"
 
 class App
 {
@@ -20,7 +20,7 @@ private:
     dragon::http::Router router;
     std::unique_ptr<dragon::http::Server> server;
     std::unique_ptr<Cart> cart;
-    std::shared_ptr<DB> db;
+    std::shared_ptr<DBPool> db;
     std::unique_ptr<CartController> cartController;
 };
 

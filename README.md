@@ -4,6 +4,7 @@ A RESTful shopping cart API built in C++ with PostgreSQL database persistence. F
 
 ## 📋 Table of Contents
 
+- [⚡ Quick Start (5 minutes)](#-quick-start-5-minutes)
 - [Features](#features)
 - [System Requirements](#system-requirements)
 - [Prerequisites](#prerequisites)
@@ -15,6 +16,57 @@ A RESTful shopping cart API built in C++ with PostgreSQL database persistence. F
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
 - [Project Structure](#project-structure)
+
+---
+
+## ⚡ Quick Start (5 minutes)
+
+**Do this in PowerShell (Run as Administrator):**
+
+```powershell
+# 1. Navigate to project
+cd C:\Users\YourUsername\Desktop\C-Project\dragon-shopping-cart
+
+# 2. Start PostgreSQL service
+Start-Service -Name postgresql-x64-18
+
+# 3. Setup database (replace 5433 if your port is different)
+$port = 5432
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p $port -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'dragon_shop'" | Select-Object -First 1 | ForEach-Object { if ($_ -notlike "1") { & "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p $port -U postgres -c "CREATE DATABASE dragon_shop;" } }
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p $port -U postgres -d dragon_shop -f "sql\migrations\001_create_tables.sql"
+
+# 4. Clean and build (first time only, or after changing dependencies)
+rmdir /s /q build -ErrorAction SilentlyContinue
+mkdir build
+cd build
+
+# 5. Configure CMake with vcpkg
+# Replace C:\path\to\vcpkg with your actual vcpkg path
+cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake -G "Visual Studio 17 2022" -A x64
+
+# 6. Build
+cmake --build . --config Release
+
+# 7. Run the server
+cd Release
+.\dragon_shopping_cart.exe
+```
+
+**In a new PowerShell window, test the API:**
+
+```powershell
+# Get all cart items
+Invoke-WebRequest -Uri "http://127.0.0.1:8081/cart" -Method GET
+```
+
+**Expected response:** You should see Laptop, Mouse, and Keyboard items.
+
+> **Stuck?** See the [Troubleshooting](#troubleshooting) section. Most issues are:
+> - PostgreSQL port is wrong (check with: `Get-Service postgresql-x64-18`)
+> - vcpkg path is incorrect
+> - Database not created (run Step 3 again)
+
+---
 
 ## ✨ Features
 
@@ -62,112 +114,136 @@ Before setting up the project, install the following:
 
 ## 🚀 Installation & Setup
 
-### Step 1: Clone/Open the Project
-```bash
-cd C:\Users\YourUsername\Desktop\C-Project\dragon-shopping-cart
+### ✅ Verify Prerequisites First
+
+Open PowerShell **as Administrator** and verify each is installed:
+
+```powershell
+# Check CMake
+cmake --version  # Should be 3.10+
+
+# Check Visual Studio Build Tools
+# If this fails, reinstall Visual Studio Build Tools with C++ workload
+where cl.exe  # Should show C:\Program Files\...\cl.exe
+
+# Check PostgreSQL
+Get-Service -Name postgresql-x64-18  # Should show "Running"
+
+# If PostgreSQL is not running, start it:
+Start-Service -Name postgresql-x64-18
+
+# Check vcpkg exists
+Test-Path C:\path\to\vcpkg\bootstrap-vcpkg.bat  # Replace with YOUR vcpkg path
 ```
 
-### Step 2: Configure Environment Variables
-Copy the example environment file and update with your PostgreSQL settings:
-```bash
-# Copy .env.example to .env
-copy .env.example .env
-
-# Edit .env with your PostgreSQL credentials and settings
-# Key variables:
-# - DB_HOST: PostgreSQL server address (default: 127.0.0.1)
-# - DB_PORT: PostgreSQL port (default: 5433, check your installation)
-# - DB_USER: PostgreSQL username (default: postgres)
-# - DB_PASSWORD: PostgreSQL password
-# - DB_NAME: Database name (default: dragon_shop)
-# - SERVER_PORT: HTTP server port (default: 8081)
+### Step 1: Locate Your vcpkg Installation Path
+```powershell
+# Find where vcpkg is installed
+Get-ChildItem -Path "C:\" -Recurse -Filter "bootstrap-vcpkg.bat" -ErrorAction SilentlyContinue | Select-Object -First 1
 ```
+**Note this path** - you'll need it for CMake configuration (e.g., `C:\Users\YourName\vcpkg` or `C:\vcpkg`)
 
-See [.env.example](.env.example) for all available configuration options.
+### Step 2: Find Your PostgreSQL Port
+```powershell
+# PostgreSQL uses either 5432 or 5433
+# Try to connect to determine the port
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5432 -U postgres -c "SELECT version();" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Port 5432 failed, trying 5433..."
+    & "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5433 -U postgres -c "SELECT version();"
+    if ($LASTEXITCODE -eq 0) { Write-Host "PostgreSQL is on port 5433" }
+}
+```
+**Note this port** - you'll need it for the build.
 
-### Step 3: Configure vcpkg Toolchain
 ### Step 3: Create Build Directory
-```bash
+```powershell
+cd C:\Users\YourUsername\Desktop\C-Project\dragon-shopping-cart
 mkdir build
 cd build
 ```
 
 ### Step 4: Run CMake Configuration
-```bash
-# Option A: Using vcpkg integration (recommended)
-cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake
+```powershell
+# Replace:
+# - C:\path\to\vcpkg with your actual vcpkg path from Step 1
+# - 5433 with your PostgreSQL port from Step 2 (if different)
 
-# Option B: Standard CMake (if vcpkg is already integrated)
-cmake ..
+cmake .. `
+  -DCMAKE_TOOLCHAIN_FILE="C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+  -G "Visual Studio 17 2022" `
+  -A x64
 ```
 
-Replace `C:\path\to\vcpkg` with your actual vcpkg installation path.
+**Expected output:** Should end with "Build files have been written to..."
+If this fails, see the [Troubleshooting](#troubleshooting) section.
 
-### For Windows (Visual Studio):
-```bash
-# From the build directory
+## 📦 Building the Project
+
+### Build Release Executable:
+```powershell
+# From your build directory
 cmake --build . --config Release
-
-# Or use Visual Studio IDE
-start dragon_shopping_cart.sln
 ```
 
-### Verify Build Success
-Look for: `dragon_shopping_cart.exe` in `build\Release\`
+**This will take 2-5 minutes on first build.**
+
+### Verify Build Success:
+```powershell
+# Check if executable exists
+Test-Path .\Release\dragon_shopping_cart.exe  # Should return True
+
+# List the executable
+Get-Item .\Release\dragon_shopping_cart.exe | Select-Object FullName, Length
+```
+
+**Expected:** File should exist and be 2-5 MB in size.
+
+### If Build Fails:
+See [Common Build Issues](#troubleshooting) in the Troubleshooting section.
 
 ## 🗄️ Database Setup
 
-### Step 1: Verify PostgreSQL is Running
-```bash
-# Check if PostgreSQL service is running
-Get-Service -Name postgresql-x64-18
+### Step 1: Ensure PostgreSQL is Running
+```powershell
+Get-Service -Name postgresql-x64-18  # Should show "Running"
 
-# If not running, start it
+# If stopped, start it
 Start-Service -Name postgresql-x64-18
 ```
 
-### Step 2: Create the Database
-```bash
-# Find your PostgreSQL port (usually 5432 or 5433)
-# Open PowerShell and run:
-& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5433 -U postgres -c "CREATE DATABASE dragon_shop;"
+### Step 2: Create Database and Load Schema
+```powershell
+# Set your PostgreSQL port (find it from Installation Step 2)
+$port = 5433  # Change to 5432 if that's your port
+
+# Create database
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p $port -U postgres -c "CREATE DATABASE dragon_shop;"
+
+# Load schema with sample data
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p $port -U postgres -d dragon_shop -f "sql\migrations\001_create_tables.sql"
 ```
 
-### Step 3: Load the Schema
-```bash
-# Load migrations and sample data
-& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5433 -U postgres -d dragon_shop -f "C:\path\to\project\sql\migrations\001_create_tables.sql"
+**Expected output:** Should show `DROP TABLE`, `CREATE TABLE`, `CREATE INDEX`, and `INSERT 0 3`.
+
+### Step 3: Verify Database Setup
+```powershell
+$port = 5433  # Use your port
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p $port -U postgres -d dragon_shop -c "SELECT COUNT(*) as item_count FROM cart_items;"
 ```
 
-**Expected Output:**
-```
-DROP TABLE
-CREATE TABLE
-CREATE INDEX
-INSERT 0 3
-```
-
-### Step 4: Verify Database Setup
-```bash
-& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5433 -U postgres -d dragon_shop -c "SELECT * FROM cart_items;"
-```
-
-You should see 3 sample items (Laptop, Mouse, Keyboard).
+**Expected:** Should show `item_count: 3` (Laptop, Mouse, Keyboard)
 
 ## ▶️ Running the Server
 
-### Step 1: Navigate to Build Directory
-```bash
-cd dragon-shopping-cart\build
+### Start the Server:
+```powershell
+cd C:\Users\YourUsername\Desktop\C-Project\dragon-shopping-cart\build\Release
+
+.\dragon_shopping_cart.exe
 ```
 
-### Step 2: Start the Server
-```bash
-# Run the executable
-.\Release\dragon_shopping_cart.exe
-```
-
-### Expected Output
+### Expected Output:
 ```
 Dragon framework initialized
 Connected to PostgreSQL database successfully
@@ -177,6 +253,16 @@ Server started on port 8081
 Press Ctrl+C to stop the server...
 Listening on http://127.0.0.1:8081
 ```
+
+**The server is now ready for requests!**
+
+### If You See Connection Errors:
+1. **"Connection refused"** → PostgreSQL is not running. Run: `Start-Service -Name postgresql-x64-18`
+2. **"Password authentication failed"** → Check your PostgreSQL port (5432 or 5433) and try the correct one
+3. **"dragon_shop database doesn't exist"** → Re-run Database Setup Step 2
+
+### Stop the Server:
+Press **Ctrl+C** in the terminal running the server.
 
 ## 📡 API Endpoints
 
@@ -329,60 +415,135 @@ Invoke-WebRequest -Uri "http://127.0.0.1:8081/cart/remove/4" -Method DELETE
 
 ## 🔧 Troubleshooting
 
-### Issue: "Connection refused" on port 8081
+### Issue: CMake configuration fails - "vcpkg toolchain not found"
+**Cause:** Incorrect vcpkg path  
 **Solution:**
-- Ensure the server is running
-- Check that no other application is using port 8081
-- Verify firewall settings allow connections to localhost
+```powershell
+# Find your vcpkg installation
+Get-ChildItem -Path "C:\" -Recurse -Filter "bootstrap-vcpkg.bat" -ErrorAction SilentlyContinue | ForEach-Object { $_.Directory }
 
-### Issue: "Database connection error: password authentication failed"
-**Solution:**
-1. Verify PostgreSQL is running: `Get-Service postgresql-x64-18`
-2. Check the correct port (5432 or 5433):
-   ```bash
-   & "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -U postgres -l
-   ```
-3. Update the port in `src/app.cpp` line 10 if needed
-4. Rebuild: `cmake --build . --config Release`
-
-### Issue: "dragon_shop database doesn't exist"
-**Solution:**
-```bash
-# Create the database
-& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5433 -U postgres -c "CREATE DATABASE dragon_shop;"
-
-# Load schema
-& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5433 -U postgres -d dragon_shop -f "sql/migrations/001_create_tables.sql"
+# Once found, update the CMake command with the correct path:
+cmake .. -DCMAKE_TOOLCHAIN_FILE="C:\YOUR_ACTUAL_VCPKG_PATH\scripts\buildsystems\vcpkg.cmake" -G "Visual Studio 17 2022" -A x64
 ```
 
-### Issue: CMake configure fails with "libpqxx not found"
+### Issue: CMake configuration fails - "libpqxx not found"
+**Cause:** Dependency not installed via vcpkg  
 **Solution:**
-1. Ensure vcpkg is properly integrated
-2. Install libpqxx via vcpkg:
-   ```bash
-   .\vcpkg install libpqxx:x64-windows
-   ```
-3. Re-run CMake with toolchain flag:
-   ```bash
-   cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake
-   ```
+```powershell
+# Install dependencies
+cd C:\YOUR_VCPKG_PATH
+.\vcpkg install libpqxx:x64-windows
+.\vcpkg install nlohmann-json:x64-windows
 
-### Issue: "Invalid JSON: parse error"
-**Solution:**
-- Ensure request `Content-Type: application/json` header is set
-- Validate JSON syntax (no trailing commas, proper quotes)
-- Use single quotes in PowerShell: `@{...} | ConvertTo-Json`
+# Then retry CMake configuration
+```
 
-### Issue: Build fails with C++ compilation errors
+### Issue: Build fails with compiler errors
+**Cause:** Missing Visual Studio Build Tools or old version  
 **Solution:**
-1. Ensure Visual Studio Build Tools 2019+ is installed with C++ workload
-2. Clean build directory:
-   ```bash
-   rmdir /s /q build
-   mkdir build && cd build
-   cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake
-   cmake --build . --config Release
-   ```
+```powershell
+# Verify compiler is installed
+where cl.exe  # Should show path to cl.exe
+
+# If not found, download and install Visual Studio Build Tools 2022:
+# https://visualstudio.microsoft.com/downloads/
+# Select "Desktop development with C++" workload
+```
+
+### Issue: Server fails to start - "Connection refused: 127.0.0.1:5432"
+**Cause:** PostgreSQL is not running or wrong port  
+**Solution:**
+```powershell
+# Check PostgreSQL service
+Get-Service postgresql-x64-18
+
+# Start it if stopped
+Start-Service -Name postgresql-x64-18
+
+# Verify connection with correct port (5432 or 5433)
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5433 -U postgres -c "SELECT 1"
+
+# If connection works, rebuild the project to use correct port
+```
+
+### Issue: Server fails to start - "Database connection error: password authentication failed"
+**Cause:** PostgreSQL password mismatch  
+**Solution:**
+```powershell
+# Default PostgreSQL password is "postgres"
+# If different, verify with:
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p 5433 -U postgres
+
+# If this fails with password error, reset PostgreSQL password or check server logs
+```
+
+### Issue: Server fails to start - "dragon_shop database doesn't exist"
+**Cause:** Database not created  
+**Solution:**
+```powershell
+# Re-run database setup
+$port = 5433
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p $port -U postgres -c "CREATE DATABASE dragon_shop;"
+& "C:\Program Files\PostgreSQL\18\bin\psql" -h localhost -p $port -U postgres -d dragon_shop -f "sql\migrations\001_create_tables.sql"
+```
+
+### Issue: Build fails or stale artifacts
+**Cause:** Old build files interfering  
+**Solution:**
+```powershell
+# Clean rebuild
+cd C:\Users\YourUsername\Desktop\C-Project\dragon-shopping-cart
+rmdir /s /q build
+mkdir build
+cd build
+
+# Reconfigure CMake
+cmake .. -DCMAKE_TOOLCHAIN_FILE="C:\path\to\vcpkg\scripts\buildsystems\vcpkg.cmake" -G "Visual Studio 17 2022" -A x64
+
+# Rebuild
+cmake --build . --config Release
+```
+
+### Issue: API request fails - "Connection refused" on port 8081
+**Cause:** Server not running  
+**Solution:**
+```powershell
+# Check if server is running
+Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue
+
+# If nothing shows, start the server:
+cd dragon-shopping-cart\build\Release
+.\dragon_shopping_cart.exe
+
+# Test from another PowerShell window
+Invoke-WebRequest -Uri "http://127.0.0.1:8081/cart" -Method GET
+```
+
+### Issue: API request returns "Invalid JSON"
+**Cause:** Malformed JSON in request  
+**Solution:**
+```powershell
+# Ensure proper JSON formatting
+$body = @{
+    id = 4
+    name = "Monitor"
+    price = 299.99
+    quantity = 1
+} | ConvertTo-Json
+
+# Verify header is set
+Invoke-WebRequest -Uri "http://127.0.0.1:8081/cart/add" `
+  -Method POST `
+  -Headers @{"Content-Type"="application/json"} `
+  -Body $body
+```
+
+### Still stuck?
+1. Check that all prerequisites are installed (see Installation & Setup)
+2. Verify PostgreSQL is running and accessible
+3. Verify vcpkg path is correct
+4. Try a clean rebuild (see "Build fails or stale artifacts" solution above)
+5. Check server logs for detailed error messages
 
 ## 📁 Project Structure
 
@@ -439,3 +600,38 @@ This project is licensed under the MIT License.
 - Default connection: `postgresql://postgres:postgres@127.0.0.1:5433/dragon_shop`
 - If database is unavailable, the application will use in-memory storage as fallback
 - Thread safety: Single database connection is shared across request threads (not protected by mutex in current version)
+
+---
+
+## ✅ Checklist for First-Time Setup
+
+Use this checklist to ensure nothing is missed:
+
+- [ ] **Prerequisites**
+  - [ ] CMake 3.10+ installed and in PATH (`cmake --version`)
+  - [ ] Visual Studio Build Tools 2022 with C++ workload installed
+  - [ ] PostgreSQL 18 installed and running
+  - [ ] vcpkg downloaded and bootstrapped
+  
+- [ ] **Configuration**
+  - [ ] Found vcpkg path (e.g., C:\vcpkg)
+  - [ ] Found PostgreSQL port (5432 or 5433)
+  - [ ] Tested PostgreSQL connection
+
+- [ ] **Database Setup**
+  - [ ] PostgreSQL service is running
+  - [ ] Database `dragon_shop` created
+  - [ ] Schema loaded from `sql/migrations/001_create_tables.sql`
+  - [ ] Verified 3 sample items exist
+
+- [ ] **Build**
+  - [ ] Build directory cleaned (or first-time)
+  - [ ] CMake configured with correct vcpkg path
+  - [ ] Build completed successfully
+  - [ ] Executable exists at `build\Release\dragon_shopping_cart.exe`
+
+- [ ] **Run**
+  - [ ] Server started successfully
+  - [ ] Server shows "Connected to PostgreSQL" message
+  - [ ] Server listening on port 8081
+  - [ ] API test returns cart items

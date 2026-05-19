@@ -6,12 +6,12 @@
 #include <memory>
 #include "models/cart.h"
 #include "models/item.h"
-#include "../db/db.h"
+#include "../db/db_pool.h"
 
 class CartController
 {
 public:
-    CartController(Cart &cart, std::shared_ptr<DB> db);
+    CartController(Cart &cart, std::shared_ptr<DBPool> db);
 
     bool addItem(const Item &item);
     bool removeItem(int itemId);
@@ -20,7 +20,7 @@ public:
 
 private:
     Cart &cart;
-    std::shared_ptr<DB> db_;
+    std::shared_ptr<DBPool> db_;
 };
 
 #endif // CART_CONTROLLER_H

@@ -84,6 +84,7 @@ public:
      */
     pqxx::result exec(const std::string &sql);
     void exec_no_result(const std::string &sql);
+    bool is_connected() const { return available() > 0; }
 
     int available() const { return static_cast<int>(pool_.size()); }
     int total_size() const { return pool_size_; }

@@ -12,7 +12,7 @@ App::App()
 {
     // Get DB connection string from environment or use default
     const char *dbUrl = std::getenv("DATABASE_URL");
-    std::string connStr = dbUrl ? dbUrl : "postgresql://postgres:postgres@127.0.0.1:5433/dragon_shop";
+    std::string connStr = dbUrl ? dbUrl : "postgresql://postgres:postgres@127.0.0.1:5432/shopping-cart";
 
     try
     {
